@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Гидропресс — Камеры</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Sora:wght@300;400;600&display=swap');
+
+:root {
+  --bg:        #181c20;
+  --surface:   #1f2428;
+  --surface2:  #252b31;
+  --border:    rgba(255,255,255,0.09);
+  --border-hi: rgba(255,255,255,0.2);
+  --accent:    #4a90a4;
+  --accent-dim: rgba(74,144,164,0.18);
+  --ok:        #4caf7d;
+  --err:       #c0625a;
+  --txt:       #cdd5dc;
+  --txt-muted: #5a6472;
+  --radius:    10px;
+  --ctrl-h:    32px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  font-family: 'Sora', sans-serif;
+  color: var(--txt);
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+#header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 44px;
+  background: rgba(11,12,15,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 10px;
+  z-index: 200;
+}
+#header .logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--txt-muted);
+}
+#header .logo span { color: var(--accent); }
+#header .sep {
+  width: 1px; height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+#header .badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--txt-muted);
+  letter-spacing: 0.05em;
+}
+#header .spacer { flex: 1; }
+#cam-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--txt-muted);
+  letter-spacing: 0.05em;
+}
+
+/* ── MAIN STAGE ── */
+#stage {
+  position: fixed;
+  top: 44px; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+/* ── GRID WRAPPER ── */
+#grid {
+  display: grid;
+  gap: 6px;
+  /* размер определяется JS */
+}
+
+/* ── CAM BLOCK ── */
+.cam-block {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s;
+}
+.cam-block:hover { border-color: var(--border-hi); }
+
+/* live pulse ring when ok */
+.cam-block.live .cam-img { opacity: 1; }
+
+.cam-img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+/* ── TOP BAR ── */
+.cam-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 38px;
+  background: linear-gradient(to bottom, rgba(15,20,26,0.85) 0%, transparent 100%);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+  z-index: 10;
+}
+.cam-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.65);
+  text-transform: uppercase;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cam-status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--err);
+  flex-shrink: 0;
+  transition: background 0.3s;
+  box-shadow: 0 0 0 0 var(--ok);
+}
+.cam-status-dot.ok {
+  background: var(--ok);
+  animation: pulse-dot 2.5s ease-out infinite;
+}
+@keyframes pulse-dot {
+  0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+  70%  { box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+  100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+}
+
+/* ── ICON BUTTONS ── */
+.icon-btn {
+  width: var(--ctrl-h);
+  height: var(--ctrl-h);
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(30,40,50,0.75);
+  border-radius: 7px;
+  cursor: pointer;
+  color: rgba(255,255,255,0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.icon-btn:hover {
+  background: rgba(74,144,164,0.35);
+  border-color: rgba(74,144,164,0.6);
+  color: #fff;
+}
+.icon-btn svg { width: 14px; height: 14px; }
+
+/* ── SELECT (hidden unless >4 cams) ── */
+.cam-select {
+  display: none;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid var(--border);
+  color: var(--txt);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  border-radius: 6px;
+  padding: 4px 6px;
+  cursor: pointer;
+  max-width: 110px;
+}
+.cam-select:focus { outline: none; border-color: var(--accent); }
+.cam-select.visible { display: block; }
+
+/* ── BOTTOM BAR ── */
+.cam-bottom {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 48px;
+  background: linear-gradient(to top, rgba(15,20,26,0.88) 0%, transparent 100%);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px;
+  gap: 5px;
+  z-index: 10;
+  opacity: 0.35;
+  transition: opacity 0.2s;
+}
+.cam-block:hover .cam-bottom { opacity: 1; }
+
+.zoom-scale-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: rgba(255,255,255,0.6);
+  min-width: 36px;
+  text-align: center;
+  margin-right: 2px;
+}
+
+/* ── PAN ARROWS ── */
+.pan-arrow {
+  position: absolute;
+  background: rgba(20,30,38,0.72);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.82);
+  width: 26px; height: 26px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 6px;
+  z-index: 15;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+.cam-block:hover .pan-arrow { opacity: 1; }
+.pan-arrow:hover { background: rgba(74,144,164,0.45); border-color: rgba(74,144,164,0.7); color: #fff; }
+.pan-arrow.disabled { opacity: 0 !important; pointer-events: none; }
+.pan-up    { top: 46px;   left: 50%; transform: translateX(-50%); }
+.pan-down  { bottom: 46px; left: 50%; transform: translateX(-50%); }
+.pan-left  { left: 8px;   top: 50%;  transform: translateY(-50%); }
+.pan-right { right: 8px;  top: 50%;  transform: translateY(-50%); }
+
+/* ── NO SIGNAL ── */
+.cam-offline {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--txt-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  pointer-events: none;
+}
+.cam-offline svg { opacity: 0.2; width: 28px; height: 28px; }
+
+/* ── LOADER ── */
+#loader {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 9999;
+  gap: 16px;
+}
+#loader .spinner {
+  width: 36px; height: 36px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loader p {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--txt-muted);
+  text-transform: uppercase;
+}
+
+/* ── OVERLAY WARNING ── */
+#overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.92);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9998; opacity: 0; pointer-events: none;
+  transition: opacity 0.4s;
+  backdrop-filter: blur(8px);
+}
+#overlay.active { opacity: 1; pointer-events: all; }
+.warn-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  width: 420px; max-width: 90%;
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.7);
+}
+.warn-icon {
+  margin-bottom: 16px;
+  color: #d4924a;
+}
+.warn-icon svg { width: 40px; height: 40px; }
+.warn-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--txt);
+}
+.warn-desc {
+  font-size: 12px;
+  color: var(--txt-muted);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+.warn-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--txt);
+  margin-bottom: 16px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s;
+}
+.warn-input:hover, .warn-input:focus { outline: none; border-color: var(--accent); }
+.warn-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-family: 'Sora', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.warn-btn:hover { opacity: 0.85; }
+
+/* ── FULLSCREEN OVERLAY ── */
+#fs-overlay {
+  position: fixed; inset: 0;
+  background: #000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+}
+#fs-overlay.open { display: flex; }
+#fs-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+#fs-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  color: var(--txt);
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+#fs-close:hover { background: rgba(255,255,255,0.16); }
+#fs-close svg { width: 14px; height: 14px; }
+#fs-label {
+  position: absolute;
+  bottom: 16px; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.25);
+  text-transform: uppercase;
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="logo"><span>ТНЦ</span> · Гидропресс SMS</div>
+  <div class="sep"></div>
+  <div class="badge">LIVE</div>
+  <div class="spacer"></div>
+  <div id="cam-count"></div>
+</div>
+
+<!-- STAGE -->
+<div id="stage">
+  <div id="grid"></div>
+</div>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="spinner"></div>
+  <p>Сканирование камер...</p>
+</div>
+
+<!-- OVERLAY -->
+<div id="overlay">
+  <div class="warn-box">
+    <div class="warn-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+      </svg>
+    </div>
+    <div class="warn-title">Нет доступа к камерам</div>
+    <div class="warn-desc">Откройте ссылку ниже в новой вкладке браузера, разрешите доступ, затем обновите эту страницу.</div>
+    <div style="position:relative;margin-bottom:16px;">
+      <input class="warn-input" type="text" readonly
+        value="https://live2:t%5E%QWrZT3CF3@motionntz.interpipe.biz/cam6/"
+        onclick="this.select()" style="margin-bottom:0;padding-right:38px;">
+      <button onclick="window.open('https://live2:t%5E%QWrZT3CF3@motionntz.interpipe.biz/cam6/','_blank')"
+        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--txt-muted);padding:4px;display:flex;align-items:center;transition:color 0.15s;"
+        onmouseover="this.style.color='var(--txt)'" onmouseout="this.style.color='var(--txt-muted)'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/>
+        </svg>
+      </button>
+    </div>
+    <button class="warn-btn" onclick="location.reload()">Обновить страницу</button>
+  </div>
+</div>
+
+<!-- FULLSCREEN OVERLAY -->
+<div id="fs-overlay">
+  <img id="fs-img" src="" alt="">
+  <button id="fs-close" onclick="closeFullscreen()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+    </svg>
+  </button>
+  <div id="fs-label"></div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const ALL_CAMERAS = [
+  { num: 6,  label: 'CAM-06' },
+  { num: 7,  label: 'CAM-07' },
+  { num: 8,  label: 'CAM-08' },
+  { num: 9,  label: 'CAM-09' },
+  { num: 10, label: 'CAM-10' },
+  { num: 11, label: 'CAM-11' },
+];
+const BASE = n => `https://motionntz.interpipe.biz/picture/${n}/current/`;
+const REFRESH_MS  = 1500;
+const IMG_TIMEOUT = 4000;
+
+// ============================================================
+// INLINE SVGs
+// ============================================================
+const SVG = {
+  expand: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"/></svg>`,
+  camera: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"/></svg>`,
+  zoomIn: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6"/></svg>`,
+  zoomOut:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM13.5 10.5h-6"/></svg>`,
+  zoomReset:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>`,
+  noSignal:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"/><line x1="2" y1="2" x2="22" y2="22" stroke-linecap="round"/></svg>`,
+  arrowU:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5"/></svg>`,
+  arrowD:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>`,
+  arrowL:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>`,
+  arrowR:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>`,
+};
+
+// ============================================================
+// STATE
+// ============================================================
+const zoomValues = {};
+const panOffsets = {};
+const intervals  = {};
+const ZOOM_STEP  = 0.25;
+
+// ============================================================
+// ZOOM / PAN
+// ============================================================
+function getScale(id){ return zoomValues[id] || 1; }
+function getOffset(id){ return panOffsets[id] || {x:0,y:0}; }
+
+function setTransform(id){
+  const s  = getScale(id);
+  const o  = getOffset(id);
+  const img = document.getElementById(id);
+  if(!img) return;
+  img.style.transform = `scale(${s}) translate(${o.x}px,${o.y}px)`;
+  const block = img.closest('.cam-block');
+  block.querySelectorAll('.pan-arrow').forEach(a => a.classList.toggle('disabled', s<=1));
+  const lbl = document.getElementById('sc_'+id);
+  if(lbl) lbl.textContent = s===1 ? '1×' : s.toFixed(2)+'×';
+}
+function setScale(id, s){
+  if(s<1) s=1;
+  zoomValues[id]=s;
+  if(s===1) panOffsets[id]={x:0,y:0};
+  setTransform(id);
+}
+function zoomIn(id)   { setScale(id, getScale(id)+ZOOM_STEP); }
+function zoomOut(id)  { setScale(id, getScale(id)-ZOOM_STEP); }
+function resetZoom(id){ setScale(id, 1); }
+function pan(id,dx,dy){
+  if(getScale(id)<=1) return;
+  const img = document.getElementById(id);
+  if(!img) return;
+  let o = getOffset(id);
+  const s = getScale(id);
+  o.x -= dx*22; o.y -= dy*22;
+  const mx=(s-1)*img.clientWidth/2, my=(s-1)*img.clientHeight/2;
+  o.x=Math.max(-mx,Math.min(mx,o.x));
+  o.y=Math.max(-my,Math.min(my,o.y));
+  panOffsets[id]=o; setTransform(id);
+}
+
+// ============================================================
+// FRAME UPDATE
+// ============================================================
+function setOffline(id, offline){
+  const block = document.getElementById('block_'+id);
+  if(!block) return;
+  let off = block.querySelector('.cam-offline');
+  if(offline && !off){
+    off = document.createElement('div');
+    off.className='cam-offline';
+    off.innerHTML=`${SVG.noSignal}<span>НЕТ СИГНАЛА</span>`;
+    block.appendChild(off);
+  } else if(!offline && off){ off.remove(); }
+}
+
+function updateImg(id){
+  const el  = document.getElementById(id);
+  const dot = document.getElementById('dot_'+id);
+  if(!el) return;
+
+  const tmp = new Image();
+  let done  = false;
+  const t   = setTimeout(()=>{
+    if(done) return; done=true; tmp.src='';
+    if(dot){ dot.classList.remove('ok'); }
+    setOffline(id, true);
+  }, IMG_TIMEOUT);
+
+  tmp.onload = ()=>{
+    if(done) return; done=true; clearTimeout(t);
+    el.src = tmp.src;
+    el.style.opacity = '1';
+    el.closest('.cam-block').classList.add('live');
+    if(dot){ dot.classList.add('ok'); }
+    setOffline(id, false);
+    hideLoaderOnce(true);
+  };
+  tmp.onerror = ()=>{
+    if(done) return; done=true; clearTimeout(t);
+    if(dot){ dot.classList.remove('ok'); }
+    setOffline(id, true);
+  };
+  tmp.src = el.dataset.base + '?_=' + Date.now();
+}
+
+function startInterval(id){
+  if(intervals[id]) clearInterval(intervals[id]);
+  intervals[id] = setInterval(()=>updateImg(id), REFRESH_MS);
+}
+
+function changeCam(sel, id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.dataset.base = BASE(sel.value);
+  const lbl = document.getElementById('lbl_'+id);
+  if(lbl) lbl.textContent = sel.options[sel.selectedIndex].text;
+  updateImg(id);
+  startInterval(id);
+}
+
+function captureImage(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  window.open(el.dataset.base+'?_='+Date.now(),'_blank');
+}
+
+// ============================================================
+// FULLSCREEN
+// ============================================================
+let fsInterval = null;
+let fsPending  = null;
+
+function enterFullscreen(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const lbl = document.getElementById('lbl_'+id);
+  const ov  = document.getElementById('fs-overlay');
+  const fi  = document.getElementById('fs-img');
+  const fl  = document.getElementById('fs-label');
+  fi.dataset.base = el.dataset.base;
+  fl.textContent  = lbl ? lbl.textContent : '';
+  ov.classList.add('open');
+
+  if(fsInterval) clearInterval(fsInterval);
+  function tick(){
+    if(fsPending){ fsPending.onload=null; fsPending.onerror=null; fsPending.src=''; }
+    const t = new Image();
+    fsPending = t;
+    t.onload  = ()=>{ fi.src=t.src; };
+    t.onerror = ()=>{};
+    t.src = fi.dataset.base+'?_='+Date.now();
+  }
+  tick();
+  fsInterval = setInterval(tick, REFRESH_MS);
+}
+
+function closeFullscreen(){
+  document.getElementById('fs-overlay').classList.remove('open');
+  if(fsInterval){ clearInterval(fsInterval); fsInterval=null; }
+  if(fsPending){ fsPending.onload=null; fsPending.onerror=null; fsPending.src=''; fsPending=null; }
+}
+
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeFullscreen(); });
+
+// ============================================================
+// BUILD GRID
+// ============================================================
+function buildGrid(cams){
+  const grid    = document.getElementById('grid');
+  const count   = cams.length;
+  const showSel = count > 4;
+
+  // Размер ячеек и колонок — зависит от количества камер
+  // При 1-3 камерах блоки НЕ растягиваются на весь экран
+  let cols, rows, cellW, cellH;
+  const stageW = window.innerWidth  - 24;  // padding 12px × 2
+  const stageH = window.innerHeight - 44 - 24;
+
+  if(count === 1){
+    cols=1; rows=1;
+    cellW = Math.min(stageW, stageH * (16/9));
+    cellH = cellW * (9/16);
+    if(cellH > stageH){ cellH=stageH; cellW=cellH*(16/9); }
+  } else if(count === 2){
+    cols=2; rows=1;
+    cellW = Math.min((stageW-6)/2, stageH*(16/9));
+    cellH = cellW*(9/16);
+    if(cellH > stageH){ cellH=stageH; cellW=cellH*(16/9); }
+  } else if(count === 3){
+    cols=2; rows=2;
+    cellW = (stageW-6)/2;
+    cellH = (stageH-6)/2;
+  } else if(count === 4){
+    cols=2; rows=2;
+    cellW = (stageW-6)/2;
+    cellH = (stageH-6)/2;
+  } else if(count <= 6){
+    cols=3; rows=2;
+    cellW = (stageW-12)/3;
+    cellH = (stageH-6)/2;
+  } else {
+    cols=4; rows=Math.ceil(count/4);
+    cellW = (stageW-18)/4;
+    cellH = (stageH-(rows-1)*6)/rows;
+  }
+
+  grid.style.gridTemplateColumns = `repeat(${cols}, ${Math.floor(cellW)}px)`;
+  grid.style.gridTemplateRows    = rows > 1
+    ? `repeat(${rows}, ${Math.floor(cellH)}px)`
+    : `${Math.floor(cellH)}px`;
+
+  document.getElementById('cam-count').textContent =
+    `${count} / ${ALL_CAMERAS.length} камер онлайн`;
+
+  cams.forEach((cam, i) => {
+    const id    = 'cam'+i;
+    const block = document.createElement('div');
+    block.className = 'cam-block';
+    block.id        = 'block_'+id;
+
+    // TOP BAR
+    const bar = document.createElement('div');
+    bar.className = 'cam-bar';
+
+    const fsBtn = document.createElement('button');
+    fsBtn.className = 'icon-btn';
+    fsBtn.innerHTML = SVG.expand;
+    fsBtn.onclick   = ()=>enterFullscreen(id);
+    bar.appendChild(fsBtn);
+
+    if(showSel){
+      const sel = document.createElement('select');
+      sel.className = 'cam-select visible';
+      ALL_CAMERAS.forEach(c=>{
+        const o = document.createElement('option');
+        o.value=c.num; o.textContent=c.label;
+        if(c.num===cam.num) o.selected=true;
+        sel.appendChild(o);
+      });
+      sel.onchange = ()=>changeCam(sel, id);
+      bar.appendChild(sel);
+    }
+
+    const lbl = document.createElement('div');
+    lbl.className='cam-label'; lbl.id='lbl_'+id;
+    lbl.textContent = cam.label;
+    bar.appendChild(lbl);
+
+    const dot = document.createElement('div');
+    dot.className='cam-status-dot'; dot.id='dot_'+id;
+    bar.appendChild(dot);
+
+    block.appendChild(bar);
+
+    // IMAGE
+    const img = document.createElement('img');
+    img.className='cam-img'; img.id=id;
+    img.dataset.base=BASE(cam.num); img.alt=cam.label;
+    block.appendChild(img);
+
+    // BOTTOM BAR
+    const bot = document.createElement('div');
+    bot.className='cam-bottom';
+
+    const scaleLbl = document.createElement('div');
+    scaleLbl.className='zoom-scale-lbl'; scaleLbl.id='sc_'+id;
+    scaleLbl.textContent='1×';
+    bot.appendChild(scaleLbl);
+
+    [
+      [SVG.zoomReset, ()=>resetZoom(id)],
+      [SVG.zoomIn,    ()=>zoomIn(id)],
+      [SVG.zoomOut,   ()=>zoomOut(id)],
+      [SVG.camera,    ()=>captureImage(id)],
+    ].forEach(([svg, fn])=>{
+      const b=document.createElement('button');
+      b.className='icon-btn'; b.innerHTML=svg; b.onclick=fn;
+      bot.appendChild(b);
+    });
+    block.appendChild(bot);
+
+    // PAN ARROWS
+    const panCfg = [
+      ['pan-arrow pan-up',    SVG.arrowU, ()=>pan(id,0,-1)],
+      ['pan-arrow pan-down',  SVG.arrowD, ()=>pan(id,0,1)],
+      ['pan-arrow pan-left',  SVG.arrowL, ()=>pan(id,-1,0)],
+      ['pan-arrow pan-right', SVG.arrowR, ()=>pan(id,1,0)],
+    ];
+    panCfg.forEach(([cls,svg,fn])=>{
+      const b=document.createElement('button');
+      b.className=cls; b.innerHTML=svg; b.onclick=fn;
+      block.appendChild(b);
+    });
+
+    grid.appendChild(block);
+    setTransform(id);
+    updateImg(id);
+    startInterval(id);
+  });
+}
+
+// ============================================================
+// LOADER
+// ============================================================
+const loader    = document.getElementById('loader');
+const overlayEl = document.getElementById('overlay');
+let   loaderDone= false;
+
+function hideLoaderOnce(ok){
+  if(loaderDone) return;
+  loaderDone=true;
+  loader.style.opacity='0';
+  loader.style.transition='opacity 0.35s';
+  setTimeout(()=>{ loader.style.display='none'; },350);
+  if(ok){ overlayEl.classList.remove('active'); }
+  else  { overlayEl.classList.add('active');    }
+}
+
+setTimeout(()=>hideLoaderOnce(false), 9000);
+
+// ============================================================
+// TEST + INIT
+// ============================================================
+function testCam(num){
+  return new Promise(resolve=>{
+    const img=new Image(); let done=false;
+    const t=setTimeout(()=>{ if(!done){done=true;img.src='';resolve(false);} },IMG_TIMEOUT);
+    img.onload =()=>{ if(!done){done=true;clearTimeout(t);resolve(true);}  };
+    img.onerror=()=>{ if(!done){done=true;clearTimeout(t);resolve(false);} };
+    img.src=BASE(num)+'?_='+Date.now();
+  });
+}
+
+window.addEventListener('load', async ()=>{
+  const results  = await Promise.all(
+    ALL_CAMERAS.map(cam=>testCam(cam.num).then(ok=>ok?cam:null))
+  );
+  const available = results.filter(Boolean);
+
+  if(!available.length){ hideLoaderOnce(false); return; }
+  buildGrid(available);
+  // лоадер скроется в первом успешном onload через hideLoaderOnce(true)
+});
+</script>
+</body>
+</html>
