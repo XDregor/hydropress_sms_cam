@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Гидропресс — Камеры</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Sora:wght@300;400;600&display=swap');
@@ -389,6 +390,118 @@ html, body {
   color: rgba(255,255,255,0.25);
   text-transform: uppercase;
 }
+
+/* ================================================================
+   RESPONSIVE / ADAPTIVE
+   ================================================================ */
+
+/* ── TABLET (≤900px) ── */
+@media (max-width: 900px) {
+  :root { --ctrl-h: 30px; }
+  #header { height: 40px; padding: 0 12px; gap: 8px; }
+  #stage  { top: 40px; padding: 8px; }
+  .cam-label { font-size: 9px; }
+  .icon-btn svg { width: 13px; height: 13px; }
+  .zoom-scale-lbl { display: none; }
+}
+
+/* ── MOBILE LANDSCAPE (≤767px wide, landscape) ── */
+@media (max-width: 767px) and (orientation: landscape) {
+  :root { --ctrl-h: 28px; }
+  #header { height: 36px; }
+  #stage  { top: 36px; padding: 4px; }
+  #header .badge, #header .sep { display: none; }
+  .cam-bar { height: 32px; }
+  .cam-bottom { height: 38px; }
+  .pan-arrow  { width: 22px; height: 22px; font-size: 11px; }
+}
+
+/* ── MOBILE PORTRAIT (≤600px) ── */
+@media (max-width: 600px) {
+  :root { --ctrl-h: 34px; }
+
+  html, body { overflow-y: auto; overflow-x: hidden; }
+
+  #header {
+    height: 48px;
+    padding: 0 14px;
+    position: sticky;
+    top: 0;
+  }
+  #header .logo { font-size: 10px; letter-spacing: 0.12em; }
+  #header .badge { display: none; }
+  #header .sep   { display: none; }
+  #cam-count     { font-size: 9px; }
+
+  #stage {
+    position: static;
+    top: auto;
+    padding: 8px;
+    min-height: calc(100dvh - 48px);
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  #grid {
+    width: 100% !important;
+    /* override JS-set pixel columns → full-width single column */
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+    gap: 8px !important;
+  }
+
+  .cam-block {
+    width: 100% !important;
+    /* 16:9 aspect ratio via padding trick */
+    height: 0 !important;
+    padding-bottom: 56.25% !important;
+    position: relative !important;
+  }
+
+  .cam-img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  /* Always show bars on mobile (no hover) */
+  .cam-bottom { opacity: 1; }
+  .cam-bar    { height: 36px; }
+
+  /* Slightly bigger touch targets */
+  .icon-btn { width: 36px; height: 36px; }
+  .icon-btn svg { width: 15px; height: 15px; }
+
+  .pan-arrow { width: 30px; height: 30px; font-size: 14px; opacity: 0.7; }
+  .cam-block:hover .pan-arrow { opacity: 1; }
+
+  /* warn-box full width on phone */
+  .warn-box { width: 92%; padding: 24px 18px; border-radius: 14px; }
+  .warn-title { font-size: 14px; }
+  .warn-desc  { font-size: 11px; }
+  .warn-input { font-size: 10px; padding: 9px 36px 9px 10px; }
+  .warn-btn   { width: 100%; padding: 12px; font-size: 13px; }
+
+  /* fullscreen label spacing */
+  #fs-label { font-size: 9px; bottom: 10px; }
+  #fs-close { top: 8px; right: 8px; }
+}
+
+/* ── TINY (≤380px — very small phones) ── */
+@media (max-width: 380px) {
+  #header .logo { font-size: 9px; letter-spacing: 0.08em; }
+  :root { --ctrl-h: 30px; }
+  .icon-btn svg { width: 13px; height: 13px; }
+  .zoom-scale-lbl { display: none; }
+}
+
+
+/* touch-active: show pan arrows when tapped on mobile */
+@media (max-width: 600px) {
+  .cam-block .pan-arrow { opacity: 0.5; }
+  .cam-block.touch-active .pan-arrow { opacity: 1; }
+}
+
 </style>
 </head>
 <body>
@@ -482,6 +595,21 @@ const SVG = {
   arrowL:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>`,
   arrowR:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>`,
 };
+
+
+// ============================================================
+// MOBILE TOUCH — toggle bottom bar on tap
+// ============================================================
+function isMobile(){ return window.innerWidth <= 600; }
+
+document.addEventListener('click', e => {
+  if(!isMobile()) return;
+  const block = e.target.closest('.cam-block');
+  if(!block) return;
+  // ignore clicks on actual buttons
+  if(e.target.closest('button') || e.target.closest('select')) return;
+  block.classList.toggle('touch-active');
+});
 
 // ============================================================
 // STATE
